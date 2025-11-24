@@ -9,6 +9,7 @@ import (
 	"openbridge/internal/config"
 	"openbridge/internal/models"
 	"openbridge/internal/service"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -81,8 +82,8 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 	}
 	log.Printf("🔑 Using API Key: %s", maskedKey)
 
-	// Forward request to AssemblyAI
-	aaiResp, err := h.forwardToAssemblyAI(&req, apiKey)
+	// Forward request to AssemblyAI (with keep-alive if converting to stream)
+	aaiResp, err := h.forwardToAssemblyAIWithKeepAlive(&req, apiKey, clientWantsStream && !req.Stream, c)
 	if err != nil {
 		log.Printf("❌ Error forwarding to AssemblyAI: %v", err)
 
@@ -271,7 +272,48 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
-// sendAsStream converts a non-stream response to SSE (Server-Sent Events) format
+// forwardToAssemblyAIWithKeepAlive forwards request with keep-alive support
+func (h *ChatHandler) forwardToAssemblyAIWithKeepAlive(req *models.ChatCompletionRequest, apiKey string, needsKeepAlive bool, c *gin.Context) (*models.AssemblyAIResponse, error) {
+	if !needsKeepAlive {
+		// No keep-alive needed, use normal method
+		return h.forwardToAssemblyAI(req, apiKey)
+	}
+
+	// Set headers for SSE keep-alive
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	// Start keep-alive goroutine
+	done := make(chan bool)
+	keepAliveTicker := time.NewTicker(5 * time.Second)
+	defer keepAliveTicker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-keepAliveTicker.C:
+				// Send SSE comment as keep-alive
+				c.Writer.Write([]byte(": keep-alive\n\n"))
+				c.Writer.Flush()
+				log.Printf(" Sent keep-alive to client")
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	// Forward request normally
+	resp, err := h.forwardToAssemblyAI(req, apiKey)
+
+	// Stop keep-alive
+	done <- true
+
+	return resp, err
+}
+
+// sendAsStream converts a non-streaming response to SSE format(Server-Sent Events) format
 func (h *ChatHandler) sendAsStream(c *gin.Context, resp *models.ChatCompletionResponse) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")

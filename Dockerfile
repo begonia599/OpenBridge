@@ -37,8 +37,8 @@ WORKDIR /app
 # 从构建阶段复制二进制文件
 COPY --from=builder /app/openbridge .
 
-# 复制配置文件模板
-COPY config.yaml .
+# 复制配置文件示例 (实际配置通过 Volume 挂载)
+COPY config.example.yaml ./config.yaml
 
 # 切换到非 root 用户
 USER openbridge

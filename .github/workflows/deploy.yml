@@ -12,7 +12,7 @@ env:
   # 1. GitHub Container Registry 镜像名
   #    格式: ghcr.io/用户名/项目名 (全小写)
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}  # 自动使用: begonia599/openbridge
+  IMAGE_NAME: ${{ github.repository_owner }}/openbridge  # 强制小写
 
   # 2. 容器名称
   CONTAINER_NAME: "openbridge-production"

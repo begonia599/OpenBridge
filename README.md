@@ -1,116 +1,134 @@
 # OpenBridge
 
-OpenAI API 到 AssemblyAI 的智能网关,支持 API Key 轮询和流式请求自动转换
+**OpenAI-Compatible API Gateway** - A universal gateway that bridges OpenAI-compatible clients with various LLM providers.
 
-## 核心特性
+[中文文档](README_CN.md) | [English](README.md)
 
-- ✅ **OpenAI 完全兼容**: 标准 OpenAI API 格式
-- 🔄 **API Key 轮询**: 支持多个后端 Key 自动轮询 (round_robin/random/least_used)
-- 🔐 **客户端认证**: 支持多个客户端 API Key 管理
-- 🌊 **流式智能处理**: 自动将流式请求转换为非流式(可配置)
-- 📊 **详细日志**: 完整记录请求和响应,便于调试
-- 🚀 **高性能**: 基于 Gin 框架
-- 📝 **响应标准化**: 自动补全 OpenAI 标准字段
+## Features
 
-## 快速开始
+- ✅ **OpenAI Compatible**: Standard OpenAI API format support
+- 🔄 **API Key Rotation**: Multiple backend keys with automatic rotation (round_robin/random/least_used)
+- 🔐 **Client Authentication**: Multi-client API key management
+- 🌊 **Smart Stream Handling**: Auto-convert between streaming and non-streaming modes
+- 🎯 **Parameter Filtering**: Configurable unsupported parameter stripping
+- 📊 **Detailed Logging**: Complete request/response logging for debugging
+- 🚀 **High Performance**: Built on Gin framework
+- 📝 **Response Normalization**: Auto-complete OpenAI standard fields
+- 🔧 **Flexible Configuration**: YAML-based configuration system
 
-### 1. 配置
+## Quick Start
 
-复制示例配置并编辑:
+### 1. Configuration
+
+Copy the example config and edit:
 
 ```bash
 cp config.example.yaml config.yaml
-# 编辑 config.yaml,填入你的 API Keys
+# Edit config.yaml and fill in your API Keys
 ```
 
 ```yaml
-# 客户端 API Keys
+# Client API Keys (for downstream clients)
 client_api_keys:
   - "sk-your-client-key-1"
 
-# 后端 AssemblyAI Keys
+# Backend Provider Configuration (example: AssemblyAI)
 assemblyai:
+  base_url: "https://llm-gateway.assemblyai.com/v1"
   api_keys:
-    - "your-assemblyai-key-1"
+    - "your-backend-api-key-1"
   
   features:
-    stream: false  # 是否支持流式
+    stream: false  # Streaming support
+    tools: false   # Tool calling support
     unsupported_params:
-      - "temperature"  # 不支持的参数列表
+      - "temperature"  # Parameters not supported by backend
 ```
 
-### 2. 运行
+### 2. Run
 
-#### 开发环境
+#### Development
 ```bash
 go run main.go
 ```
 
-#### 生产环境 (Docker)
+#### Production (Docker)
 ```bash
-# 一键部署
+# One-click deployment
 sudo chmod +x deploy.sh
 sudo ./deploy.sh
 
-# 或手动部署
+# Or manual deployment
 docker compose up -d
 ```
 
-详见 [DEPLOYMENT.md](DEPLOYMENT.md)
-
-### 3. 使用
+### 3. Usage
 
 ```bash
 curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer sk-your-client-key-1" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-sonnet-4-5-20250929",
+    "model": "your-model-name",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
 
-## API 端点
+## API Endpoints
 
-- `POST /v1/chat/completions` - 对话补全
-- `GET /v1/models` - 获取模型列表
-- `GET /v1/models/:model` - 获取指定模型
-- `GET /health` - 健康检查
-- `GET /version` - 版本信息
-- `GET /stats` - API Key 使用统计
+- `POST /v1/chat/completions` - Chat completions
+- `GET /v1/models` - List available models
+- `GET /v1/models/:model` - Retrieve specific model
+- `GET /health` - Health check
+- `GET /version` - Version information
+- `GET /stats` - API key usage statistics
 
-## 配置说明
+## Configuration
 
-### 流式处理
+### Stream Handling
 
-当 `support_stream: false` 时,客户端的 `stream: true` 请求会自动转换为 `stream: false`,避免报错。
+When backend doesn't support streaming (`stream: false`), client streaming requests are automatically converted to non-streaming mode with fake SSE responses.
 
-### 日志配置
+### Parameter Filtering
+
+Configure unsupported parameters in `features.unsupported_params` to automatically strip them from requests:
+
+```yaml
+features:
+  unsupported_params:
+    - "temperature"  # Will be removed from requests
+    - "top_p"        # Add any unsupported parameters
+```
+
+### Logging
 
 ```yaml
 logging:
-  level: debug  # 日志级别
-  log_requests: true  # 记录请求
-  log_responses: true  # 记录响应
+  level: debug  # Log level: debug, info, warn, error
+  log_requests: true   # Log request bodies
+  log_responses: true  # Log response bodies
 ```
 
-## 测试脚本
+## Supported Backends
 
-- `test_client.py` - 完整功能测试
-- `test_stream.py` - 流式处理测试
-- `test_response_format.py` - 响应格式验证
-- `test_rate_limit.py` - 速率限制测试
-- `test_image.py` - 图片/多模态测试
-- `test_model_limits.py` - 模型限制测试 (输入/输出 token)
-- `test_compare_official.py` - 与官方 API 对比测试
-- `test_assemblyai_direct.py` - 直接测试 AssemblyAI API
+Currently tested with:
+- **AssemblyAI** - Claude models via LLM Gateway
 
-## 文档
+Easily extensible to other providers by adjusting configuration.
 
-- `DEPLOYMENT.md` - 部署指南 (Docker) 🐳
-- `FEATURES.md` - 功能配置指南
-- `PARAMETERS.md` - OpenAI API 参数详解
-- `ERROR_HANDLING.md` - 错误处理说明
-- `MODEL_VERIFICATION.md` - 模型验证指南
-- `README.md` - 项目说明
-- `ai.md` - AssemblyAI API 文档
+## Version
+
+Current version: **v1.0.1**
+
+Check version:
+```bash
+curl http://localhost:8080/version
+```
+
+## License
+
+MIT License
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

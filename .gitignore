@@ -1,0 +1,62 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+openbridge
+openbridge.exe
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Config files with sensitive data
+config.yaml
+config.local.yaml
+*.local.yaml
+
+# Test files
+test_*.json
+debug_proxy.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Package files
+*.zip
+temp_package/
+
+# Documentation (except README.md)
+DEPLOYMENT.md
+FEATURES.md
+PARAMETERS.md
+ERROR_HANDLING.md
+MODEL_VERIFICATION.md
+ai.md
+config.assemblyai.yaml
+
+# Scripts
+package.bat
+package.ps1
+package_private.bat

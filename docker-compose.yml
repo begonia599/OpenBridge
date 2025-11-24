@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  openbridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openbridge
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # 挂载配置文件
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - TZ=Asia/Shanghai
+      - GIN_MODE=release
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - openbridge-net
+
+networks:
+  openbridge-net:
+    driver: bridge

@@ -3,51 +3,62 @@
 
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: "8080"
 
-# 客户端 API Keys - 下游客户端使用这些 key 访问服务
+# 管理后台配置
+admin:
+  enabled: true
+  password: "your-admin-password"  # 留空则无需密码
+
+# 客户端 API Keys - 下游客户端使用这些 key 访问本服务
 client_api_keys:
-  - "sk-openbridge-test-key-1"
-  - "sk-openbridge-test-key-2"
-  - "sk-openbridge-test-key-3"
+  - "sk-openbridge-key-1"
 
-# AssemblyAI API Keys - 支持多个 key 轮询
-assemblyai:
-  base_url: "https://llm-gateway.assemblyai.com/v1"
-  api_keys:
-    - "your-assemblyai-api-key-1"
-    - "your-assemblyai-api-key-2"
-    - "your-assemblyai-api-key-3"
-  
-  # 轮询策略: round_robin, random, least_used
-  rotation_strategy: "round_robin"
-  
-  # 功能支持配置 - 后端支持哪些功能
-  features:
-    stream: false              # 流式响应
-    vision: false              # 图片/多模态
-    tools: true                # 工具调用 (function calling)
-    json_mode: true            # JSON 响应格式
-    logprobs: false            # 返回 token 概率
-    multiple_choices: false    # 支持 n > 1 (多个回答)
-    system_fingerprint: false  # 系统指纹
-    
-    # 不支持的参数列表 (AssemblyAI Claude 特定)
-    unsupported_params:
-      - "temperature"          # Claude 不支持 temperature 参数
-  
-  # 自动转换配置 - 如何处理不支持的功能
-  auto_convert:
-    stream_to_fake: true       # 将流式请求转换为假流式
-    strip_unsupported: true    # 移除不支持的参数
-    warn_on_unsupported: true  # 警告不支持的功能
-    reject_unsupported: false  # 拒绝不支持的请求 (false=忽略并继续)
+# Provider 配置 - 上游 LLM 服务商
+providers:
+  # OpenAI 官方
+  openai:
+    type: openai
+    base_url: "https://api.openai.com/v1"
+    api_keys:
+      - "sk-your-openai-key"
+    rotation_strategy: "round_robin"
+
+  # Claude 官方 (原生 API)
+  claude:
+    type: anthropic
+    base_url: ""  # 留空使用默认 https://api.anthropic.com
+    api_keys:
+      - "sk-ant-your-claude-key"
+    rotation_strategy: "round_robin"
+
+  # Google Gemini (原生 API)
+  gemini:
+    type: google
+    base_url: ""  # 留空使用默认 https://generativelanguage.googleapis.com/v1beta
+    api_keys:
+      - "your-google-api-key"
+    rotation_strategy: "round_robin"
+
+  # DeepSeek (OpenAI 兼容)
+  deepseek:
+    type: openai
+    base_url: "https://api.deepseek.com/v1"
+    api_keys:
+      - "sk-your-deepseek-key"
+
+# 模型路由 - 根据模型名称路由到对应的 Provider
+# 支持通配符 * 匹配
+routes:
+  "gpt-*": openai
+  "o1-*": openai
+  "claude-*": claude
+  "gemini-*": gemini
+  "deepseek-*": deepseek
 
 # 日志配置
 logging:
-  level: "debug"  # debug, info, warn, error
-  format: "text"  # json, text
-  
-  # 是否打印详细的请求和响应
-  log_requests: true
-  log_responses: true
+  level: "info"
+  format: "text"
+  log_requests: false
+  log_responses: false

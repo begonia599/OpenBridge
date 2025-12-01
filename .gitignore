@@ -24,6 +24,10 @@ config.yaml
 config.local.yaml
 *.local.yaml
 
+# User data
+users.json
+users.backup.json
+
 # Test files
 test_*.json
 debug_proxy.py

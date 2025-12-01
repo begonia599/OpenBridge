@@ -104,3 +104,38 @@ type Usage struct {
 	CompletionTokens int `json:"completion_tokens"`
 	TotalTokens      int `json:"total_tokens"`
 }
+
+// ChatCompletionChunk 流式响应块
+type ChatCompletionChunk struct {
+	ID      string        `json:"id"`
+	Object  string        `json:"object"`
+	Created int64         `json:"created"`
+	Model   string        `json:"model"`
+	Choices []ChunkChoice `json:"choices"`
+	Usage   *Usage        `json:"usage,omitempty"`
+}
+
+type ChunkChoice struct {
+	Index        int          `json:"index"`
+	Delta        ChunkDelta   `json:"delta"`
+	FinishReason *string      `json:"finish_reason"`
+}
+
+type ChunkDelta struct {
+	Role      string     `json:"role,omitempty"`
+	Content   string     `json:"content,omitempty"`
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+}
+
+// ModelList 模型列表响应
+type ModelList struct {
+	Object string  `json:"object"`
+	Data   []Model `json:"data"`
+}
+
+type Model struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	OwnedBy string `json:"owned_by"`
+}

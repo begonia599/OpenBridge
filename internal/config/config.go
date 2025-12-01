@@ -7,10 +7,17 @@ import (
 )
 
 type Config struct {
-	Server        ServerConfig     `yaml:"server"`
-	ClientAPIKeys []string         `yaml:"client_api_keys"`
-	AssemblyAI    AssemblyAIConfig `yaml:"assemblyai"`
-	Logging       LoggingConfig    `yaml:"logging"`
+	Server        ServerConfig              `yaml:"server"`
+	Admin         AdminConfig               `yaml:"admin"`
+	ClientAPIKeys []string                  `yaml:"client_api_keys"`
+	Providers     map[string]ProviderConfig `yaml:"providers"`
+	Routes        map[string]string         `yaml:"routes"`
+	Logging       LoggingConfig             `yaml:"logging"`
+}
+
+type AdminConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Password string `yaml:"password"`
 }
 
 type ServerConfig struct {
@@ -18,33 +25,11 @@ type ServerConfig struct {
 	Port string `yaml:"port"`
 }
 
-type AssemblyAIConfig struct {
-	BaseURL          string            `yaml:"base_url"`
-	APIKeys          []string          `yaml:"api_keys"`
-	RotationStrategy string            `yaml:"rotation_strategy"`
-	Features         FeaturesConfig    `yaml:"features"`
-	AutoConvert      AutoConvertConfig `yaml:"auto_convert"`
-
-	// 保留向后兼容 (deprecated)
-	SupportStream bool `yaml:"support_stream"`
-}
-
-type FeaturesConfig struct {
-	Stream            bool     `yaml:"stream"`
-	Vision            bool     `yaml:"vision"`
-	Tools             bool     `yaml:"tools"`
-	JSONMode          bool     `yaml:"json_mode"`
-	Logprobs          bool     `yaml:"logprobs"`
-	MultipleChoices   bool     `yaml:"multiple_choices"`
-	SystemFingerprint bool     `yaml:"system_fingerprint"`
-	UnsupportedParams []string `yaml:"unsupported_params"` // 不支持的参数列表
-}
-
-type AutoConvertConfig struct {
-	StreamToFake      bool `yaml:"stream_to_fake"`
-	StripUnsupported  bool `yaml:"strip_unsupported"`
-	WarnOnUnsupported bool `yaml:"warn_on_unsupported"`
-	RejectUnsupported bool `yaml:"reject_unsupported"`
+type ProviderConfig struct {
+	Type             string   `yaml:"type"`     // openai, anthropic, google
+	BaseURL          string   `yaml:"base_url"`
+	APIKeys          []string `yaml:"api_keys"`
+	RotationStrategy string   `yaml:"rotation_strategy"` // round_robin, random, least_used
 }
 
 type LoggingConfig struct {
@@ -72,22 +57,13 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.Port == "" {
 		cfg.Server.Port = "8080"
 	}
-	if cfg.AssemblyAI.BaseURL == "" {
-		cfg.AssemblyAI.BaseURL = "https://llm-gateway.assemblyai.com/v1"
-	}
-	if cfg.AssemblyAI.RotationStrategy == "" {
-		cfg.AssemblyAI.RotationStrategy = "round_robin"
-	}
 
-	// 向后兼容: 如果使用旧的 support_stream 配置
-	if cfg.AssemblyAI.SupportStream {
-		cfg.AssemblyAI.Features.Stream = true
-	}
-
-	// AutoConvert 默认值
-	if !cfg.AssemblyAI.AutoConvert.StreamToFake && !cfg.AssemblyAI.Features.Stream {
-		// 如果后端不支持流式,默认启用假流式转换
-		cfg.AssemblyAI.AutoConvert.StreamToFake = true
+	// Set default rotation strategy for providers
+	for name, provider := range cfg.Providers {
+		if provider.RotationStrategy == "" {
+			provider.RotationStrategy = "round_robin"
+		}
+		cfg.Providers[name] = provider
 	}
 
 	return &cfg, nil

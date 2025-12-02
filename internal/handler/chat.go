@@ -44,7 +44,7 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 	}
 
 	// 根据 model 路由到对应的 Provider
-	p, err := h.registry.RouteModel(req.Model)
+	providerName, actualModel, err := h.registry.RouteModel(req.Model)
 	if err != nil {
 		log.Printf("❌ No provider for model %s: %v", req.Model, err)
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
@@ -55,13 +55,23 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 		return
 	}
 
+	p, ok := h.registry.GetProvider(providerName)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			"Provider not found: "+providerName,
+			models.ErrorTypeServerError,
+			models.ErrorCodeServerError,
+		))
+		return
+	}
+
 	log.Printf("🔀 Routing model %s to provider: %s (%s)", req.Model, p.Name(), p.Type())
 
 	// 获取 API Key
-	apiKey := h.keyManagers.GetKey(p.Name())
+	apiKey := h.keyManagers.GetKey(providerName)
 	if apiKey == "" {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
-			"No API keys configured for provider: "+p.Name(),
+			"No API keys configured for provider: "+providerName,
 			models.ErrorTypeServerError,
 			models.ErrorCodeServerError,
 		))
@@ -75,9 +85,13 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 	}
 	log.Printf("🔑 Using API Key: %s", maskedKey)
 
+	// 使用实际的模型 ID（不带前缀）发送请求
+	originalModel := req.Model
+	req.Model = actualModel
+
 	// 处理流式请求
 	if req.Stream {
-		h.handleStreamRequest(c, p, &req, apiKey)
+		h.handleStreamRequest(c, p, &req, apiKey, originalModel)
 		return
 	}
 
@@ -89,6 +103,9 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 		return
 	}
 
+	// 恢复原始模型名称（带前缀）
+	resp.Model = originalModel
+
 	// Log response
 	if h.config.Logging.LogResponses {
 		respJSON, _ := json.MarshalIndent(resp, "", "  ")
@@ -98,7 +115,7 @@ func (h *ChatHandler) CreateChatCompletion(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (h *ChatHandler) handleStreamRequest(c *gin.Context, p provider.Provider, req *models.ChatCompletionRequest, apiKey string) {
+func (h *ChatHandler) handleStreamRequest(c *gin.Context, p provider.Provider, req *models.ChatCompletionRequest, apiKey string, originalModel string) {
 	// 设置 SSE headers
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -128,6 +145,9 @@ func (h *ChatHandler) handleStreamRequest(c *gin.Context, p provider.Provider, r
 				log.Printf("✅ Stream completed")
 				return
 			}
+
+			// 恢复原始模型名称（带前缀）
+			chunk.Model = originalModel
 
 			data, err := json.Marshal(chunk)
 			if err != nil {

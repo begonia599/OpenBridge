@@ -57,9 +57,14 @@ func (h *ModelsHandler) ListModels(c *gin.Context) {
 
 			mu.Lock()
 			for _, m := range modelList.Data {
-				// 缓存模型到 Provider 的映射
-				h.registry.CacheModel(m.ID, name)
-				// 标记模型来源
+				// 生成带前缀的模型 ID: "provider_name/model_id"
+				prefixedID := name + "/" + m.ID
+				
+				// 缓存模型到 Provider 的映射（使用带前缀的 ID）
+				h.registry.CacheModel(prefixedID, name, m.ID)
+				
+				// 返回带前缀的模型 ID
+				m.ID = prefixedID
 				m.OwnedBy = name
 				allModels = append(allModels, m)
 			}
@@ -81,7 +86,7 @@ func (h *ModelsHandler) ListModels(c *gin.Context) {
 func (h *ModelsHandler) RetrieveModel(c *gin.Context) {
 	modelID := c.Param("model")
 
-	p, err := h.registry.RouteModel(modelID)
+	providerName, _, err := h.registry.RouteModel(modelID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			"Model not found: "+modelID,
@@ -94,6 +99,6 @@ func (h *ModelsHandler) RetrieveModel(c *gin.Context) {
 	c.JSON(http.StatusOK, models.Model{
 		ID:      modelID,
 		Object:  "model",
-		OwnedBy: p.Name(),
+		OwnedBy: providerName,
 	})
 }

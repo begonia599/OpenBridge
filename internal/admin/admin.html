@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenBridge Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        h1 { margin-bottom: 20px; color: #1a1a1a; }
+        h2 { font-size: 18px; margin-bottom: 15px; color: #444; border-bottom: 2px solid #007bff; padding-bottom: 8px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        input, select, textarea { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #007bff; }
+        input[type="text"], textarea { flex: 1; min-width: 150px; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .tag { display: inline-block; padding: 2px 8px; background: #e9ecef; border-radius: 4px; font-size: 12px; margin: 2px; }
+        .tag-openai { background: #d4edda; color: #155724; }
+        .tag-anthropic { background: #fff3cd; color: #856404; }
+        .tag-google { background: #cce5ff; color: #004085; }
+        .key-display { font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; }
+        .copy-btn { padding: 4px 8px; font-size: 12px; margin-left: 8px; }
+        .status { padding: 20px; text-align: center; color: #666; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: #333; color: white; border-radius: 4px; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+        .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+        .model-card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .model-card:hover { background: #e9ecef; border-color: #007bff; }
+        .model-card.available { border-color: #28a745; background: #f0f9f6; }
+        .model-card.unavailable { border-color: #dc3545; background: #fdf6f6; }
+        .model-card.testing { opacity: 0.6; }
+        .model-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; word-break: break-all; }
+        .model-provider { font-size: 12px; color: #666; margin-bottom: 6px; }
+        .model-status { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.available { background: #28a745; }
+        .status-dot.unavailable { background: #dc3545; }
+        .status-dot.untested { background: #6c757d; }
+        .status-text.available { color: #28a745; }
+        .status-text.unavailable { color: #dc3545; }
+        .status-text.untested { color: #6c757d; }
+        .test-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .test-modal.show { display: flex; }
+        .test-modal-content { background: white; border-radius: 8px; padding: 20px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .test-modal-content h3 { margin-bottom: 15px; }
+        .test-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; font-family: monospace; font-size: 12px; }
+        .test-output { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .modal-buttons button { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌉 OpenBridge Admin</h1>
+
+        <!-- Client Keys -->
+        <div class="card">
+            <h2>🔑 客户端 API Keys</h2>
+            <p style="color:#666;margin-bottom:15px;font-size:14px">下游客户端使用这些 Key 访问本服务</p>
+            <button class="btn-success" onclick="generateKey()">+ 生成新 Key</button>
+            <table id="keysTable">
+                <thead><tr><th>API Key</th><th>操作</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Providers -->
+        <div class="card">
+            <h2>🔌 上游 Providers</h2>
+            <p style="color:#666;margin-bottom:15px;font-size:14px">配置上游 LLM 服务商</p>
+            <div class="form-row">
+                <input type="text" id="providerName" placeholder="名称 (如: openai)">
+                <select id="providerType">
+                    <option value="openai">OpenAI 格式</option>
+                    <option value="anthropic">Anthropic 格式</option>
+                    <option value="google">Google 格式</option>
+                </select>
+                <input type="text" id="providerUrl" placeholder="Base URL (如: https://api.openai.com/v1)">
+                <input type="text" id="providerKeys" placeholder="API Keys (逗号分隔)">
+                <button class="btn-primary" onclick="addProvider()">添加</button>
+            </div>
+            <table id="providersTable">
+                <thead><tr><th>名称</th><th>类型</th><th>Base URL</th><th>API Keys</th><th>操作</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Models -->
+        <div class="card">
+            <h2>🤖 可用模型</h2>
+            <p style="color:#666;margin-bottom:15px;font-size:14px">所有配置的 Provider 的模型列表，点击模型可进行测试</p>
+            <button class="btn-primary" onclick="loadModels()">刷新模型列表</button>
+            <div id="modelsContainer" class="model-grid"></div>
+        </div>
+
+    </div>
+
+    <!-- Test Modal -->
+    <div class="test-modal" id="testModal">
+        <div class="test-modal-content">
+            <h3>测试模型: <span id="testModelName"></span></h3>
+            <label>用户消息:</label>
+            <textarea class="test-input" id="testMessage" placeholder="输入测试消息" rows="3">Hello!</textarea>
+            <label>Max Tokens:</label>
+            <input type="number" class="test-input" id="testMaxTokens" value="100" min="1">
+            <button class="btn-primary" onclick="runTest()" style="width:100%">发送测试请求</button>
+            <div id="testOutput" class="test-output" style="display:none;"></div>
+            <div class="modal-buttons">
+                <button class="btn-primary" onclick="closeTestModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/admin/admin.js"></script>
+</body>
+</html>

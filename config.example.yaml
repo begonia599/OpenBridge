@@ -47,15 +47,6 @@ providers:
     api_keys:
       - "sk-your-deepseek-key"
 
-# 模型路由 - 根据模型名称路由到对应的 Provider
-# 支持通配符 * 匹配
-routes:
-  "gpt-*": openai
-  "o1-*": openai
-  "claude-*": claude
-  "gemini-*": gemini
-  "deepseek-*": deepseek
-
 # 日志配置
 logging:
   level: "info"

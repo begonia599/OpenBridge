@@ -16,7 +16,6 @@ import (
 type AdminConfig struct {
 	ClientAPIKeys []string                  `json:"client_api_keys" yaml:"client_api_keys"`
 	Providers     map[string]ProviderConfig `json:"providers" yaml:"providers"`
-	Routes        map[string]string         `json:"routes" yaml:"routes"`
 	mu            sync.RWMutex
 }
 
@@ -37,7 +36,6 @@ func Init(path string) error {
 	configPath = path
 	adminConfig = &AdminConfig{
 		Providers: make(map[string]ProviderConfig),
-		Routes:    make(map[string]string),
 	}
 
 	data, err := os.ReadFile(path)
@@ -53,8 +51,9 @@ func SetupRoutes(r *gin.Engine, adminPassword string) {
 	admin := r.Group("/admin")
 	admin.Use(adminAuthMiddleware(adminPassword))
 	{
-		// 页面
+		// 页面和资源
 		admin.GET("", serveAdminPage)
+		admin.GET("admin.js", serveAdminJS)
 
 		// API
 		admin.GET("/api/config", getConfig)
@@ -62,8 +61,6 @@ func SetupRoutes(r *gin.Engine, adminPassword string) {
 		admin.DELETE("/api/providers/:name", deleteProvider)
 		admin.POST("/api/keys/generate", generateClientKey)
 		admin.DELETE("/api/keys/:key", deleteClientKey)
-		admin.POST("/api/routes", addRoute)
-		admin.DELETE("/api/routes/:pattern", deleteRoute)
 	}
 }
 
@@ -92,11 +89,9 @@ func getConfig(c *gin.Context) {
 	safeConfig := struct {
 		ClientAPIKeys []string                  `json:"client_api_keys"`
 		Providers     map[string]ProviderConfig `json:"providers"`
-		Routes        map[string]string         `json:"routes"`
 	}{
 		ClientAPIKeys: adminConfig.ClientAPIKeys,
 		Providers:     make(map[string]ProviderConfig),
-		Routes:        adminConfig.Routes,
 	}
 
 	for name, p := range adminConfig.Providers {
@@ -180,35 +175,7 @@ func deleteClientKey(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Key deleted"})
 }
 
-func addRoute(c *gin.Context) {
-	var req struct {
-		Pattern  string `json:"pattern"`
-		Provider string `json:"provider"`
-	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	adminConfig.mu.Lock()
-	adminConfig.Routes[req.Pattern] = req.Provider
-	adminConfig.mu.Unlock()
-
-	saveConfig()
-	c.JSON(http.StatusOK, gin.H{"message": "Route added"})
-}
-
-func deleteRoute(c *gin.Context) {
-	pattern := c.Param("pattern")
-
-	adminConfig.mu.Lock()
-	delete(adminConfig.Routes, pattern)
-	adminConfig.mu.Unlock()
-
-	saveConfig()
-	c.JSON(http.StatusOK, gin.H{"message": "Route deleted"})
-}
 
 func saveConfig() error {
 	adminConfig.mu.RLock()
@@ -228,7 +195,6 @@ func saveConfig() error {
 	// 更新相关字段
 	fullConfig["client_api_keys"] = adminConfig.ClientAPIKeys
 	fullConfig["providers"] = adminConfig.Providers
-	fullConfig["routes"] = adminConfig.Routes
 
 	// 写回文件
 	newData, err := yaml.Marshal(fullConfig)
@@ -253,7 +219,11 @@ func maskKey(key string) string {
 }
 
 func serveAdminPage(c *gin.Context) {
-	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
+	c.File("internal/admin/admin.html")
+}
+
+func serveAdminJS(c *gin.Context) {
+	c.File("internal/admin/admin.js")
 }
 
 var _ = json.Marshal // 确保 import 被使用
